@@ -10,7 +10,6 @@ use path_absolutize::Absolutize;
 use std::process::{Command, ExitStatus};
 use execute::Execute;
 
-
 // ***************************************************************************
 //                             Constants
 // ***************************************************************************
@@ -21,13 +20,18 @@ those that can logon to the TMS Server machine.  Administrators can list or
 delete records from several database tables. The sqlite3 program must be on 
 the PATH for execution to succeed.");
 
+const DEBUG: bool = true;
+
 // Sqlite command line program that we call to access the database.
 // Usage: sqlite3 [OPTIONS] FILENAME [SQL]
 //   FILENAME is the name of an SQLite database. A new database is created
 //   if the file does not previously exist, which we short-circuit.
 const SQLITE3: &str = "sqlite3";
 
-const LIST_PUBKEY: &str = "SELECT * FROM pubkeys ";
+// SQL command prototypes.
+const LIST_PUBKEY:     &str = "SELECT * FROM pubkeys ";
+const LIST_CLIENT:     &str = "SELECT * FROM clients ";
+const LIST_DELEGATION: &str = "SELECT * FROM delegations ";
 
 // ***************************************************************************
 //                             Static Variables
@@ -60,8 +64,126 @@ pub enum TmsResource {
 }
 
 // ***************************************************************************
+//                               Main Processing
+// ***************************************************************************
+fn main() {
+    // Parse command line args and print based on compile-time debug flag.
+    let arg_info = format!("*** Command line arguments *** \n{:?}\n", *TMSADM_ARGS);
+    if DEBUG {println!("{}", arg_info);}
+
+    // Check that the database file exists, which avoids sqlite3 creating it.
+    check_db_file();
+
+    // Choose the command processor to execute.
+    if TMSADM_ARGS.operation == TmsOperation::LIST {
+        // LIST operations.
+        if TMSADM_ARGS.resource == TmsResource::pubkey {
+            process_list_pubkey();
+        } else if TMSADM_ARGS.resource == TmsResource::client {
+            process_list_client();
+        } else {
+            process_list_delegation();
+        }
+    } else {
+        // DELETE operations.
+        if TMSADM_ARGS.resource == TmsResource::pubkey {
+            process_delete_pubkey();
+        } else if TMSADM_ARGS.resource == TmsResource::client {
+            process_delete_client();
+        } else {
+            process_delete_delegation();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// process_list_pubkey:
+// ---------------------------------------------------------------------------
+fn process_list_pubkey() {
+    // Construct the command and run it.
+    let cmd = make_sqlite3_cmd(LIST_PUBKEY);
+    run_command(cmd, "LIST pubkeys");
+}
+
+// ---------------------------------------------------------------------------
+// process_list_client:
+// ---------------------------------------------------------------------------
+fn process_list_client() {
+    // Construct the command and run it.
+    let cmd = make_sqlite3_cmd(LIST_CLIENT);
+    run_command(cmd, "LIST clients");
+}
+
+// ---------------------------------------------------------------------------
+// process_list_delegation:
+// ---------------------------------------------------------------------------
+fn process_list_delegation() {
+    // Construct the command and run it.
+    let cmd = make_sqlite3_cmd(LIST_DELEGATION);
+    run_command(cmd, "LIST delegations");
+}
+
+// ---------------------------------------------------------------------------
+// process_delete_pubkey:
+// ---------------------------------------------------------------------------
+fn process_delete_pubkey() {
+
+}
+
+// ---------------------------------------------------------------------------
+// process_delete_client:
+// ---------------------------------------------------------------------------
+fn process_delete_client() {
+
+}
+
+// ---------------------------------------------------------------------------
+// process_delete_delegation:
+// ---------------------------------------------------------------------------
+fn process_delete_delegation() {
+
+}
+
+// ---------------------------------------------------------------------------
+// process_delete_delegation:
+// ---------------------------------------------------------------------------
+/** Create the command object that issues an OS call with this format:
+ * 
+ *   sqlite3 [OPTIONS] FILENAME [SQL]
+ */
+fn make_sqlite3_cmd(sql_stmt: &str) -> Command {
+    // Construct the SQL command.
+    let mut sql = sql_stmt.to_string();
+    match &TMSADM_ARGS.sqlwhere {
+        Some(wh) => sql += wh,
+        None => {},
+    }
+    if TMSADM_ARGS.limit > 0 {
+        sql += " LIMIT ";
+        sql += TMSADM_ARGS.limit.to_string().as_str();
+    }
+
+    // Build the command with user selected options.
+    let mut cmd = Command::new(SQLITE3);
+    if !&TMSADM_ARGS.json_off {cmd.arg("-json");}
+    if !&TMSADM_ARGS.header_off {cmd.arg("-header");}
+    if !&TMSADM_ARGS.echo_off {cmd.arg("-echo");}
+    cmd.arg(get_absolute_path(&TMSADM_ARGS.dbpath));
+    cmd.arg(sql);
+    cmd
+}
+
+// ***************************************************************************
 //                               Config Structs
 // ***************************************************************************
+// ---------------------------------------------------------------------------
+// init_tms_args:
+// ---------------------------------------------------------------------------
+/** Get the command line arguments. */
+fn init_tmsadm_args() -> TmsadmArgs {
+    TmsadmArgs::from_args()
+}
+
 // ---------------------------------------------------------------------------
 // TmsadmArgs:
 // ---------------------------------------------------------------------------
@@ -118,103 +240,8 @@ pub struct TmsadmArgs {
 }
 
 // ***************************************************************************
-//                               Functions
+//                               Utilities
 // ***************************************************************************
-fn main() {
-    // Parse command line args.
-    println!("*** Command line arguments *** \n{:?}\n", *TMSADM_ARGS);
-
-    // Check that the database file exists, which avoids sqlite3 creating it.
-    check_db_file();
-
-    // Choose the command processor to execute.
-    if TMSADM_ARGS.operation == TmsOperation::LIST {
-        // LIST operations.
-        if TMSADM_ARGS.resource == TmsResource::pubkey {
-            process_list_pubkey();
-        } else if TMSADM_ARGS.resource == TmsResource::client {
-            process_list_client();
-        } else {
-            process_list_delegation();
-        }
-    } else {
-        // DELETE operations.
-        if TMSADM_ARGS.resource == TmsResource::pubkey {
-            process_delete_pubkey();
-        } else if TMSADM_ARGS.resource == TmsResource::client {
-            process_delete_client();
-        } else {
-            process_delete_delegation();
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// process_list_pubkey:
-// ---------------------------------------------------------------------------
-fn process_list_pubkey() {
-    // Construct the SQL command.
-    let mut sql = LIST_PUBKEY.to_string();
-    match &TMSADM_ARGS.sqlwhere {
-        Some(wh) => sql += wh,
-        None => {},
-    }
-
-    // Build the command with user selected options.
-    let mut cmd = Command::new(SQLITE3);
-    if !&TMSADM_ARGS.json_off {cmd.arg("-json");}
-    if !&TMSADM_ARGS.header_off {cmd.arg("-header");}
-    if !&TMSADM_ARGS.echo_off {cmd.arg("-echo");}
-    cmd.arg(get_absolute_path(&TMSADM_ARGS.dbpath));
-    cmd.arg(sql);
-
-    // Run the command.
-    run_command(cmd, "LIST pubkeys");
-}
-
-// ---------------------------------------------------------------------------
-// process_list_client:
-// ---------------------------------------------------------------------------
-fn process_list_client() {
-
-}
-
-// ---------------------------------------------------------------------------
-// process_list_delegation:
-// ---------------------------------------------------------------------------
-fn process_list_delegation() {
-
-}
-
-// ---------------------------------------------------------------------------
-// process_delete_pubkey:
-// ---------------------------------------------------------------------------
-fn process_delete_pubkey() {
-
-}
-
-// ---------------------------------------------------------------------------
-// process_delete_client:
-// ---------------------------------------------------------------------------
-fn process_delete_client() {
-
-}
-
-// ---------------------------------------------------------------------------
-// process_delete_delegation:
-// ---------------------------------------------------------------------------
-fn process_delete_delegation() {
-
-}
-
-// ---------------------------------------------------------------------------
-// init_tms_args:
-// ---------------------------------------------------------------------------
-/** Get the command line arguments. */
-fn init_tmsadm_args() -> TmsadmArgs {
-    TmsadmArgs::from_args()
-}
-
 // ---------------------------------------------------------------------------
 // check_db_file:
 // ---------------------------------------------------------------------------
