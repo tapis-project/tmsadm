@@ -1,0 +1,15 @@
+[package]
+name = "tmsadm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+execute = "0.2"
+lazy_static = "1.4"
+path-absolutize = "3.1"
+shellexpand = "3.1"
+structopt = {  version = "0.3", features = [ "default" ] }
+strum = { version = "0.26", features = ["derive"] }
+strum_macros = "0.26"
+
