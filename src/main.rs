@@ -136,7 +136,10 @@ fn process_delete_pubkey() {
     if !TMSADM_ARGS.confirm_delete_off {
         // First show what could be deleted.
         process_list_pubkey();
-        if !confirm_delete() {return}
+        if !confirm_delete() {
+            println!("Nothing deleted.");
+            return
+        }
     }
 
     // Construct the command and run it.
@@ -151,7 +154,10 @@ fn process_delete_client() {
     if !TMSADM_ARGS.confirm_delete_off {
         // First show what could be deleted.
         process_list_client();
-        if !confirm_delete() {return}
+        if !confirm_delete() {
+            println!("Nothing deleted.");
+            return
+        }
     }
 
     // Construct the command and run it.
@@ -167,7 +173,10 @@ fn process_delete_delegation() {
     if !TMSADM_ARGS.confirm_delete_off {
         // First show what could be deleted.
         process_list_delegation();
-        if !confirm_delete() {return}
+        if !confirm_delete() {
+            println!("Nothing deleted.");
+            return
+        }
     }
 
     // Construct the command and run it.
@@ -294,7 +303,7 @@ fn check_db_file() {
  */
 fn confirm_delete() -> bool {
     // Prompt user for confirmation.
-    println!("Confirm deletion of the above listed records (y/n):");
+    println!("\nConfirm deletion of the above listed records (y/n):");
 
     // Collect response.
     let mut input = String::new();
@@ -303,7 +312,10 @@ fn confirm_delete() -> bool {
             if input.to_lowercase().starts_with('y') {true}
                 else {false}
         },
-        Err(e) => panic!("error: {}", e),
+        Err(e) => {
+            println!("Nothing deleted.");
+            panic!("error: {}", e)
+        },
     }
 }
 
