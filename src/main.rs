@@ -5,6 +5,7 @@ use structopt::StructOpt;
 use strum_macros::EnumString;
 use std::path::Path;
 use std::ops::Deref;
+use std::io;
 
 use path_absolutize::Absolutize;
 use std::process::{Command, ExitStatus};
@@ -17,8 +18,10 @@ const TMSADM_INFO: &str = concat!("
 The tmsadm program provides administrative access to the TMS Server's Sqlite 
 database from the command line. Access to this program should be limited to 
 those that can logon to the TMS Server machine.  Administrators can list or 
-delete records from several database tables. The sqlite3 program must be on 
-the PATH for execution to succeed.");
+delete records from several database tables. 
+
+The sqlite3 program must be on the PATH for execution to succeed.
+----------------------------------------------------------------------------");
 
 const DEBUG: bool = true;
 
@@ -29,9 +32,12 @@ const DEBUG: bool = true;
 const SQLITE3: &str = "sqlite3";
 
 // SQL command prototypes.
-const LIST_PUBKEY:     &str = "SELECT * FROM pubkeys ";
-const LIST_CLIENT:     &str = "SELECT * FROM clients ";
-const LIST_DELEGATION: &str = "SELECT * FROM delegations ";
+const LIST_PUBKEY:       &str = "SELECT * FROM pubkeys ";
+const LIST_CLIENT:       &str = "SELECT * FROM clients ";
+const LIST_DELEGATION:   &str = "SELECT * FROM delegations ";
+const DELETE_PUBKEY:     &str = "DELETE FROM pubkeys ";
+const DELETE_CLIENT:     &str = "DELETE FROM clients ";
+const DELETE_DELEGATION: &str = "DELETE FROM delegations ";
 
 // ***************************************************************************
 //                             Static Variables
@@ -127,13 +133,30 @@ fn process_list_delegation() {
 // process_delete_pubkey:
 // ---------------------------------------------------------------------------
 fn process_delete_pubkey() {
+    if !TMSADM_ARGS.confirm_delete_off {
+        // First show what could be deleted.
+        process_list_pubkey();
+        if !confirm_delete() {return}
+    }
 
+    // Construct the command and run it.
+    let cmd = make_sqlite3_cmd(DELETE_PUBKEY);
+    run_command(cmd, "DELETE pubkeys");
 }
 
 // ---------------------------------------------------------------------------
 // process_delete_client:
 // ---------------------------------------------------------------------------
 fn process_delete_client() {
+    if !TMSADM_ARGS.confirm_delete_off {
+        // First show what could be deleted.
+        process_list_client();
+        if !confirm_delete() {return}
+    }
+
+    // Construct the command and run it.
+    let cmd = make_sqlite3_cmd(DELETE_CLIENT);
+    run_command(cmd, "DELETE clients");
 
 }
 
@@ -141,11 +164,19 @@ fn process_delete_client() {
 // process_delete_delegation:
 // ---------------------------------------------------------------------------
 fn process_delete_delegation() {
+    if !TMSADM_ARGS.confirm_delete_off {
+        // First show what could be deleted.
+        process_list_delegation();
+        if !confirm_delete() {return}
+    }
 
+    // Construct the command and run it.
+    let cmd = make_sqlite3_cmd(DELETE_DELEGATION);
+    run_command(cmd, "DELETE delegations");
 }
 
 // ---------------------------------------------------------------------------
-// process_delete_delegation:
+// make_sqlite3_cmd:
 // ---------------------------------------------------------------------------
 /** Create the command object that issues an OS call with this format:
  * 
@@ -225,6 +256,11 @@ pub struct TmsadmArgs {
     #[structopt(short, long, default_value = "0")]
     pub limit: i32,
 
+    /// Don't prompt user for confirmation on deletes (default=false, implying conformation on).
+    /// 
+    #[structopt(long)]
+    pub confirm_delete_off: bool,
+
     /// Provide an SQL WHERE clause to be submitted as part of a SQL statement. The clause
     /// must start with the word "WHERE" (case insensitive) be written exactly as it would 
     /// appear in an SQL statment. Example:
@@ -248,6 +284,26 @@ pub struct TmsadmArgs {
 fn check_db_file() {
     if !Path::new(&get_absolute_path(&TMSADM_ARGS.dbpath)).is_file() {
         panic!("Database file does not exist: {}",get_absolute_path(&TMSADM_ARGS.dbpath));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// confirm_delete:
+// ---------------------------------------------------------------------------
+/** Prompt user to confirm deletion and read user input from stdin.
+ */
+fn confirm_delete() -> bool {
+    // Prompt user for confirmation.
+    println!("Confirm deletion of the above listed records (y/n):");
+
+    // Collect response.
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => {
+            if input.to_lowercase().starts_with('y') {true}
+                else {false}
+        },
+        Err(e) => panic!("error: {}", e),
     }
 }
 
