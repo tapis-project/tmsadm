@@ -271,7 +271,7 @@ pub struct TmsadmArgs {
     pub confirm_delete_off: bool,
 
     /// Provide an SQL WHERE clause to be submitted as part of a SQL statement. The clause
-    /// must start with the word "WHERE" (case insensitive) be written exactly as it would 
+    /// must start with the word "WHERE" (case insensitive) and be written exactly as it would 
     /// appear in an SQL statment. Example:
     /// 
     ///   "WHERE tms_user_id = 'bud' and host = 'example.com'"
