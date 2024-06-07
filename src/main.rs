@@ -23,7 +23,7 @@ delete records from several database tables.
 The sqlite3 program must be on the PATH for execution to succeed.
 ----------------------------------------------------------------------------");
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 // Sqlite command line program that we call to access the database.
 // Usage: sqlite3 [OPTIONS] FILENAME [SQL]
